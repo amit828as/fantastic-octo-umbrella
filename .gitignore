@@ -1,0 +1,46 @@
+# Build and temp files
+*.log
+*.tmp
+*.cache
+build/
+dist/
+temp/
+
+# Development environment
+.env
+.env.*
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+databases/
+
+# Temporary and cache files
+.cache/
+.tmp/
+*.backup
+*_backup* 

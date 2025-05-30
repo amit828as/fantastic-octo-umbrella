@@ -6,6 +6,10 @@ import subprocess
 from datetime import datetime, UTC
 from typing import Optional, Tuple, Dict
 from pathlib import Path
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool, QueuePool
+from sqlalchemy.engine import Engine
 
 try:
     import psycopg2
@@ -271,6 +275,7 @@ class DatabaseManager:
     def migrate_database(connection_string: str, db_type: str = "sqlite") -> Tuple[bool, str]:
         """
         Run schema migrations on a database.
+        For dynamic databases, we'll directly create the tables using SQLAlchemy models.
         
         Args:
             connection_string: Database connection string
@@ -279,23 +284,39 @@ class DatabaseManager:
         Returns:
             Tuple of (success: bool, message: str)
         """
-        if not ALEMBIC_AVAILABLE:
-            return False, "Alembic not available for migrations"
+        if not SQLALCHEMY_AVAILABLE:
+            return False, "SQLAlchemy not available for migrations"
         
         try:
-            # Create a temporary alembic config for this specific database
-            alembic_cfg = Config()
+            # Create engine for the dynamic database
+            engine = create_engine(connection_string)
             
-            # Set the database URL for this migration
-            alembic_cfg.set_main_option("sqlalchemy.url", connection_string)
+            # Import the models to get the table definitions
+            from app.models.organization import Organization
+            from app.models.admin import Admin
             
-            # Set the script location (assuming standard structure)
-            alembic_cfg.set_main_option("script_location", "alembic")
+            # Create all tables defined in the models
+            from sqlalchemy.orm import declarative_base
             
-            # Run the migration to latest version
-            command.upgrade(alembic_cfg, "head")
+            # Get the base class that both models inherit from
+            Base = Organization.metadata.bind = engine
             
-            return True, "Database migration completed successfully"
+            # Create all tables
+            Organization.metadata.create_all(engine)
+            
+            # Verify tables were created
+            with engine.connect() as conn:
+                if db_type == "sqlite":
+                    result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('organizations', 'admins')"))
+                    tables = [row[0] for row in result.fetchall()]
+                else:
+                    result = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_name IN ('organizations', 'admins')"))
+                    tables = [row[0] for row in result.fetchall()]
+                
+                if 'organizations' in tables and 'admins' in tables:
+                    return True, "Database schema created successfully"
+                else:
+                    return False, f"Tables not created properly. Found: {tables}"
             
         except Exception as e:
             return False, f"Migration failed: {str(e)}"
@@ -404,7 +425,7 @@ class DatabaseManager:
             
             # Test the connection
             with engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             
             return True, "Connection pool created successfully", engine
             

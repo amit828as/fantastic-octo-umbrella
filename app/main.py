@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import routers
-from app.routers import organization
+from app.routers import organization, auth
 
 app = FastAPI(
     title="Organization Management API",
@@ -36,4 +36,5 @@ async def health_check():
     return {"status": "healthy"}
 
 # Router includes
-app.include_router(organization.router, prefix="/api/v1") 
+app.include_router(organization.router, prefix="/api/v1")
+app.include_router(auth.router) 

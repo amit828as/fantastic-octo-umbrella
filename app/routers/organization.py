@@ -9,7 +9,9 @@ from app.database.connection import get_db
 from app.schemas.organization import (
     OrganizationCreateRequest, 
     OrganizationCreateResponse, 
-    OrganizationCreateError
+    OrganizationCreateError,
+    OrganizationResponse,
+    OrganizationError
 )
 from app.services.organization_service import OrganizationService
 
@@ -219,6 +221,91 @@ async def create_organization(
                 "error": "Internal Server Error",
                 "message": "An unexpected error occurred. Please try again later.",
                 "error_type": "unexpected_error"
+            }
+        )
+
+
+@router.get("/get", 
+            response_model=OrganizationResponse,
+            status_code=status.HTTP_200_OK,
+            responses={
+                400: {"model": OrganizationError, "description": "Bad Request - Invalid parameters"},
+                404: {"model": OrganizationError, "description": "Not Found - Organization does not exist"},
+                500: {"model": OrganizationError, "description": "Internal Server Error - Database or system error"}
+            })
+async def get_organization(
+    organization_name: str,
+    db: Session = Depends(get_db)
+) -> OrganizationResponse:
+    """
+    Retrieve organization information by organization name.
+    
+    Returns organization details including ID, name, admin email, and creation timestamp.
+    Sensitive information like password hashes and database connection strings are excluded.
+    
+    Args:
+        organization_name: Name of the organization to retrieve
+        db: Database session dependency
+        
+    Returns:
+        OrganizationResponse with organization details
+        
+    Raises:
+        HTTPException: Various HTTP errors based on failure type
+    """
+    try:
+        logger.info(f"Retrieving organization information for: {organization_name}")
+        
+        # Validate input
+        if not organization_name or not organization_name.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "success": False,
+                    "message": "Organization name is required",
+                    "error_type": "validation_error"
+                }
+            )
+        
+        # Get organization from database
+        organization = OrganizationService.get_organization_by_name(db, organization_name.strip())
+        
+        if not organization:
+            logger.warning(f"Organization not found: {organization_name}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "success": False,
+                    "message": f"Organization '{organization_name}' not found",
+                    "error_type": "not_found"
+                }
+            )
+        
+        logger.info(f"Organization retrieved successfully: {organization.name} (ID: {organization.id})")
+        
+        # Return organization information (excluding sensitive data)
+        return OrganizationResponse(
+            success=True,
+            organization_id=organization.id,
+            organization_name=organization.name,
+            admin_email=organization.admin_email,
+            created_at=organization.created_at.isoformat() if organization.created_at else None
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+        
+    except Exception as e:
+        # Handle unexpected errors
+        logger.error(f"Unexpected error during organization retrieval: {str(e)}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "success": False,
+                "message": "An unexpected error occurred while retrieving organization information",
+                "error_type": "server_error"
             }
         )
 

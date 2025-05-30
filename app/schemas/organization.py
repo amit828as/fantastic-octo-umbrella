@@ -132,4 +132,44 @@ class OrganizationCreateError(BaseModel):
     success: bool = Field(False, description="Always false for error responses")
     message: str = Field(description="Error message")
     error_type: str = Field(description="Type of error")
-    details: Optional[dict] = Field(None, description="Additional error details") 
+    details: Optional[dict] = Field(None, description="Additional error details")
+
+
+class OrganizationResponse(BaseModel):
+    """Schema for organization retrieval response"""
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "organization_id": 1,
+                "organization_name": "Acme Corporation",
+                "admin_email": "admin@acmecorp.com",
+                "created_at": "2025-05-30T08:00:00Z"
+            }
+        }
+    )
+    
+    success: bool = Field(True, description="Whether the request was successful")
+    organization_id: int = Field(description="Unique identifier of the organization")
+    organization_name: str = Field(description="Name of the organization")
+    admin_email: str = Field(description="Email of the organization admin")
+    created_at: Optional[str] = Field(None, description="Organization creation timestamp")
+
+
+class OrganizationError(BaseModel):
+    """Schema for organization retrieval error response"""
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": False,
+                "message": "Organization not found",
+                "error_type": "not_found"
+            }
+        }
+    )
+    
+    success: bool = Field(False, description="Always false for error responses")
+    message: str = Field(description="Error message")
+    error_type: str = Field(description="Type of error (not_found, validation_error, etc.)") 
